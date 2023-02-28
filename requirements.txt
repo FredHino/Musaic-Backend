@@ -1,3 +1,2 @@
 Flask==2.2.2
 spotipy==2.22.1
-createPlaylist== /Users/fred/Desktop/test 2/backend-testing/api/createPlaylist.py

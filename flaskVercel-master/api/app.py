@@ -1,5 +1,4 @@
 
-
 from flask import Flask, url_for, session, request, redirect
 from spotipy.oauth2 import SpotifyOAuth
 import json

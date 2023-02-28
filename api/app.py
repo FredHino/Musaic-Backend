@@ -76,7 +76,7 @@ def create_spotify_oauth():
     return SpotifyOAuth(
         client_id ='39951c143d3f4fd1b8a4159d349399e8',
         client_secret='58ed9c7f0a7944efbc045a0393459e09',
-        redirect_uri=url_for('authorize', _external=True),
+        redirect_uri='https://backend-testing-ruby.vercel.app/',
         scope=['playlist-modify-private','playlist-modify-public','user-read-email','user-top-read','user-read-recently-played','user-read-private'])
 
 def main(oauth):

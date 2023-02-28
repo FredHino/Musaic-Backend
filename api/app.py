@@ -88,7 +88,7 @@ def main(oauth):
     tracks = pm.get_tracks(num_tracks)
 
     # get playlist name from user and create playlist
-    playlist = pm.create_playlist("Test")
+    playlist = pm.create_playlist("Musaic")
 
     # populate playlist with recommended tracks
     pm.populate_playlist(playlist, tracks)
@@ -259,7 +259,7 @@ class playlistmaker:
         userid = self.get_user_id()
         data = json.dumps({
             "name": name,
-            "description": "Recommended songs by Spotify Matched c:",
+            "description": "Recommended songs by Musaic c:",
             "collaborative": True,
             "public": False
         })

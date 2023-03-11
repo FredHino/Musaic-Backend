@@ -87,7 +87,7 @@ def main(oauth):
     # for multiple people use
     listofauths = [auth]
     # get genre types?
-    genres = ["rap"]
+    genres = ["country"]
     # "r-n-b", "pop", "jazz", "classical", "alternative", "indie", "j-rock", "latin"
 
     # main playlist
@@ -99,7 +99,7 @@ def main(oauth):
     num_tracks = int(20 / len(listofauths))
     # tracks = pm.multiple_get_tracks(num_tracks)
     tracks = pm.get_tracks_genre_filter(num_tracks, genres)
-    title = "Yay Musaic"
+    title = "Musaic"
     description = "Recommended songs by Musaic heh c:"
     playlist = pm.create_playlist(title, description)
     pm.populate_playlist(playlist, tracks)

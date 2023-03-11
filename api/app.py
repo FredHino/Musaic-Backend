@@ -105,9 +105,9 @@ def main(oauth):
     pm.populate_playlist(playlist, tracks)
 
     # get recommended if not full
-    if len(tracks) < 100:
+    if len(tracks) < 20:
         random.seed()
-        rec_track_num = 100 - len(tracks)
+        rec_track_num = 20 - len(tracks)
         # check if songs actually found in library
         seed_tracks = list()
         if (len(tracks) != 0):

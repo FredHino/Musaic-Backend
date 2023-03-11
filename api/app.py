@@ -96,7 +96,7 @@ def main(oauth):
     # get tracks, limit is 50 for top and recently played tracks
     # also if we go beyond 100 Spotify kind of breaks
     # since we're getting both top played and recently played, divide by 2
-    num_tracks = int(50 / len(listofauths))
+    num_tracks = int(20 / len(listofauths))
     # tracks = pm.multiple_get_tracks(num_tracks)
     tracks = pm.get_tracks_genre_filter(num_tracks, genres)
     title = "Yay Musaic"

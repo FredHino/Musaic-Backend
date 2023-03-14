@@ -87,7 +87,7 @@ def main(oauth):
     # for multiple people use
     listofauths = [auth]
     # get genre types?
-    genres = ["jazz"]
+    genres = ["rap"]
     # "r-n-b", "pop", "jazz", "classical", "alternative", "indie", "j-rock", "latin"
 
     # main playlist

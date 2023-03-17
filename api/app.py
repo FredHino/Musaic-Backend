@@ -71,7 +71,6 @@ def get_all_tracks():
             "link": link,
             "tracks": tracks,
         }
-        get_top_tracks_and_store_in_db(token)
         return render_template("playlist.html", link=link, tracks=tracks)
     return render_template("input_form.html")
 
@@ -114,7 +113,7 @@ def get_playlist_from_gpt(user_input, access_token):
     sp = spotipy.Spotify(auth=access_token)
     top_artists = pm.get_top_artists()
 
-    prompt = f"Based on these artists '{top_artists}', choose the artists that best fit the phrase '{user_input}' and make me a '{user_input}' playlist with 10 songs. Don't censor output."
+    prompt = f"Based on these artists '{top_artists}', choose the artists that best fit the phrase '{user_input}' and make me a '{user_input}' playlist with 10 songs."
     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=500, n=1, stop=None, temperature=0.7)
     playlist_text = response.choices[0].text.strip()
     playlist_lines = playlist_text.split('\n')

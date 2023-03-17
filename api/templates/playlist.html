@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated Playlist</title>
+</head>
+<body>
+    <h1>Generated Playlist</h1>
+    <a href="{{ link }}">Open in Spotify</a>
+    <h2>Tracks:</h2>
+    <ol>
+        {% for track in tracks %}
+            <li>{{ track['name'] }} - {{ track['artists'][0]['name'] }}</li>
+        {% endfor %}
+    </ol>
+</body>
+</html>

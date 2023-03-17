@@ -13,8 +13,8 @@ import os
 
 load_dotenv(find_dotenv())
 
-password = os.environ.get['password']
-openai.api_key = os.environ['api_key']
+password = os.environ.get('password')
+openai.api_key = os.environ.get('api_key')
 
 connection_string = f"mongodb+srv://team8bits:{password}@spotifymatched.2u1gxhe.mongodb.net/?retryWrites=true&w=majority"
 client = MongoClient(connection_string)

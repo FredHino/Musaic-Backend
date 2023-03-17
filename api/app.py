@@ -1,5 +1,5 @@
 from flask import Flask, url_for, session, request, redirect, render_template
-# from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv, find_dotenv
 import requests
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -11,7 +11,7 @@ from collections import Counter
 from pymongo import MongoClient
 import os
 
-# load_dotenv(find_dotenv())
+load_dotenv(find_dotenv())
 
 password = os.environ.get['password']
 openai.api_key = os.environ['api_key']

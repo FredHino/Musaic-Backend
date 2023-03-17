@@ -24,8 +24,6 @@ dbs = client.list_database_names()
 user_info_db = client.user_info
 users_top_songs = user_info_db.users_top_songs
 
-# Set up your OpenAI API key
-openai.api_key = "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"
 
 # App config
 app = Flask(__name__)
@@ -46,7 +44,7 @@ def authorize():
     code = request.args.get('code')
     token_info = sp_oauth.get_access_token(code)
     session["token_info"] = token_info
-    return redirect("/storeTopTracksAndCreatePlaylist")
+    return redirect("/getTracks")
 
 # Checks to see if token is valid and gets a new token if not
 
@@ -73,21 +71,10 @@ def get_all_tracks():
             "link": link,
             "tracks": tracks,
         }
+        get_top_tracks_and_store_in_db(token)
         return render_template("playlist.html", link=link, tracks=tracks)
     return render_template("input_form.html")
 
-@app.route('/topTracksPlaylist', methods=['GET'])
-def create_top_tracks_playlist():
-    session['token_info'], authorized = get_token()
-    session.modified = True
-    if not authorized:
-        return redirect('/')
-    
-    pm = Musaic(session.get('token_info').get('access_token'))
-
-    combined_tracks = pm.get_combined_tracks(session.get('token_info').get('access_token'))
-    link = pm.create_playlist_from_tracks(session.get('token_info').get('access_token'), combined_tracks)
-    return render_template("playlist.html", link=link)
 
 
 def create_spotify_oauth():
@@ -125,10 +112,9 @@ def get_token():
 def get_playlist_from_gpt(user_input, access_token):
     pm = Musaic(access_token)
     sp = spotipy.Spotify(auth=access_token)
-    top_genres = pm.get_top_genres()
-    
+    top_artists = pm.get_top_artists()
 
-    prompt = f"Based on these genres '{top_genres}', make me a lilst of genres based on this phrase '{user_input}'"
+    prompt = f"Based on these artists '{top_artists}', choose the artists that best fit the phrase '{user_input}' and make me a '{user_input}' playlist with 10 songs. Don't censor output."
     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=500, n=1, stop=None, temperature=0.7)
     playlist_text = response.choices[0].text.strip()
     playlist_lines = playlist_text.split('\n')
@@ -140,13 +126,15 @@ def get_playlist_from_gpt(user_input, access_token):
     # Convert track names to track IDs
     track_ids = []
     for track_name in playlist:
-        search_results = sp.search(q=track_name, type="track", limit=1)
-        if search_results["tracks"]["items"]:
-            track_id = search_results["tracks"]["items"][0]["id"]
-            track_ids.append(track_id)
+        if track_name:  # Check if the track_name is not empty
+            search_results = sp.search(q=track_name, type="track", limit=1)
+            if search_results["tracks"]["items"]:
+                track_id = search_results["tracks"]["items"][0]["id"]
+                track_ids.append(track_id)
     print(track_ids)
 
     return track_ids
+
 
 def main(access_token,suggested_playlist,user_input):
     sp = spotipy.Spotify(auth=access_token)
@@ -201,18 +189,6 @@ def get_top_tracks_and_store_in_db(access_token):
 
     return top_track_ids
 
-# Example usage: Get the user's top 50 tracks, store them in the database, and create a playlist
-@app.route('/storeTopTracksAndCreatePlaylist', methods=['GET'])
-def store_top_tracks_and_create_playlist():
-    session['token_info'], authorized = get_token()
-    session.modified = True
-    if not authorized:
-        return redirect('/')
-    pm = Musaic(session.get('token_info').get('access_token'))
-
-    top_tracks = get_top_tracks_and_store_in_db(session.get('token_info').get('access_token'))
-    link = pm.create_playlist_from_tracks(top_tracks)
-    return render_template("playlist.html", link=link)
 
 class Musaic:
     def __init__(self, access_token):

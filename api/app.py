@@ -1,4 +1,5 @@
 from flask import Flask, url_for, session, request, redirect, render_template
+from dotenv import load_dotenv, find_dotenv
 import requests
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -8,11 +9,12 @@ import random
 import openai
 from collections import Counter
 from pymongo import MongoClient
+import os
 
+load_dotenv(find_dotenv())
 
-
-password = "CS370001"
-
+password = os.environ.get['password']
+openai.api_key = os.environ['openai.api_key']
 
 connection_string = f"mongodb+srv://team8bits:{password}@spotifymatched.2u1gxhe.mongodb.net/?retryWrites=true&w=majority"
 client = MongoClient(connection_string)

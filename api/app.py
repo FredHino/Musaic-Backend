@@ -44,7 +44,7 @@ def authorize():
     code = request.args.get('code')
     token_info = sp_oauth.get_access_token(code)
     session["token_info"] = token_info
-    return redirect("/getTracks")
+    return redirect("/logout")
 
 # Checks to see if token is valid and gets a new token if not
 

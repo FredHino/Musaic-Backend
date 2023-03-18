@@ -13,25 +13,23 @@ import os
 
 load_dotenv(find_dotenv())
 
+password = os.environ.get('password')
+openai.api_key = os.environ.get('api_key')
+
+connection_string = f"mongodb+srv://team8bits:{password}@spotifymatched.2u1gxhe.mongodb.net/?retryWrites=true&w=majority"
+client = MongoClient(connection_string)
+
+dbs = client.list_database_names()
+
+user_info_db = client.user_info
+users_top_songs = user_info_db.users_top_songs
+
+
 # App config
 app = Flask(__name__)
 
 app.secret_key = 'SOMETHING-RANDOM'
 app.config['SESSION_COOKIE_NAME'] = 'spotify-login-session'
-
-password = os.environ.get('password')
-openai.api_key = os.environ.get('api_key')
-
-# connection_string = f"mongodb+srv://team8bits:{password}@spotifymatched.2u1gxhe.mongodb.net/?retryWrites=true&w=majority"
-# client = MongoClient(connection_string)
-
-# dbs = client.list_database_names()
-
-# user_info_db = client.user_info
-# users_top_songs = user_info_db.users_top_songs
-
-
-
 
 @app.route('/')
 def login():
@@ -46,7 +44,7 @@ def authorize():
     code = request.args.get('code')
     token_info = sp_oauth.get_access_token(code)
     session["token_info"] = token_info
-    return redirect("/logout")
+    return redirect("/getTracks")
 
 # Checks to see if token is valid and gets a new token if not
 
@@ -158,37 +156,37 @@ def main(access_token,suggested_playlist,user_input):
     link = playlist["external_urls"]["spotify"]
     return link, track_details
 
-# # Function to check if user's Spotify ID is in the database
-# def is_user_in_database(spotify_id):
-#     user = user_info_db.users_top_songs.find_one({"spotify_id": spotify_id})
-#     return user is not None
+# Function to check if user's Spotify ID is in the database
+def is_user_in_database(spotify_id):
+    user = user_info_db.users_top_songs.find_one({"spotify_id": spotify_id})
+    return user is not None
 
-# # Function to store user's Spotify ID and top songs in the database
-# def store_top_songs_in_database(spotify_id, top_tracks):
-#     if not is_user_in_database(spotify_id):
-#         user_data = {
-#             "spotify_id": spotify_id,
-#             "top_songs": top_tracks
-#         }
-#         user_info_db.users_top_songs.insert_one(user_data)
+# Function to store user's Spotify ID and top songs in the database
+def store_top_songs_in_database(spotify_id, top_tracks):
+    if not is_user_in_database(spotify_id):
+        user_data = {
+            "spotify_id": spotify_id,
+            "top_songs": top_tracks
+        }
+        user_info_db.users_top_songs.insert_one(user_data)
 
 # Modified get_top_tracks function
-# def get_top_tracks_and_store_in_db(access_token):
-#     sp = spotipy.Spotify(auth=access_token)
+def get_top_tracks_and_store_in_db(access_token):
+    sp = spotipy.Spotify(auth=access_token)
 
-#     # Get the user's top tracks
-#     top_tracks = sp.current_user_top_tracks(limit=50)['items']
+    # Get the user's top tracks
+    top_tracks = sp.current_user_top_tracks(limit=50)['items']
 
-#     # Get the track IDs
-#     top_track_ids = [track['id'] for track in top_tracks]
+    # Get the track IDs
+    top_track_ids = [track['id'] for track in top_tracks]
 
-#     # Get the user's Spotify ID
-#     spotify_id = sp.me()["id"]
+    # Get the user's Spotify ID
+    spotify_id = sp.me()["id"]
 
-#     # Store the user's Spotify ID and top songs in the database
-#     store_top_songs_in_database(spotify_id, top_track_ids)
+    # Store the user's Spotify ID and top songs in the database
+    store_top_songs_in_database(spotify_id, top_track_ids)
 
-#     return top_track_ids
+    return top_track_ids
 
 
 class Musaic:

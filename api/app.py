@@ -113,23 +113,33 @@ def get_playlist_from_gpt(user_input, access_token):
     sp = spotipy.Spotify(auth=access_token)
     top_artists = pm.get_top_artists()
 
-    prompt = f"Based on these artists '{top_artists}', choose the artists that best fit the phrase '{user_input}' and make me a '{user_input}' playlist with 10 songs."
+    prompt = f"Based on this phrase '{user_input}', give me a list of artists. Pick 3 artists from '{top_artists}' and choose 3 relevant artists not listed."
     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=500, n=1, stop=None, temperature=0.7)
-    playlist_text = response.choices[0].text.strip()
-    playlist_lines = playlist_text.split('\n')
-    playlist = [line.partition('. ')[-1].strip().rstrip('"') for line in playlist_lines if line]
-    playlist = [line.partition('. ')[-1].strip().replace('"', '') for line in playlist_lines if line]
+    artist_list_text = response.choices[0].text.strip()
+    artist_text_lines = artist_list_text.split('\n')
+    artist_list = [line.partition('. ')[-1].strip().rstrip('"') for line in artist_text_lines if line]
+    artist_list = [line.partition('. ')[-1].strip().replace('"', '') for line in artist_text_lines if line]
 
-    print(playlist)
+    print(artist_list)
 
     # Convert track names to track IDs
     track_ids = []
-    for track_name in playlist:
-        if track_name:  # Check if the track_name is not empty
-            search_results = sp.search(q=track_name, type="track", limit=1)
-            if search_results["tracks"]["items"]:
-                track_id = search_results["tracks"]["items"][0]["id"]
-                track_ids.append(track_id)
+    while(len(track_ids) <= 20):
+        count = 0
+        for count in range(10):
+            for artist_name in artist_list:
+                if artist_name:  # Check if the artist_name is not empty
+                    search_results = sp.search(q=artist_name, type="track", limit=10)
+                    random.shuffle(search_results)
+                    if search_results["tracks"]["items"]:
+                        track_id = search_results["tracks"]["items"][count]["id"]
+                        if track_id in track_ids:
+                            count+=1
+                            print("already in tracks")
+                            continue
+                        if(len(track_ids) >= 20):
+                            return track_ids
+                        track_ids.append(track_id)
     print(track_ids)
 
     return track_ids
@@ -216,13 +226,18 @@ class Musaic:
         top_genres = [genre for genre, _ in genres_counter.most_common(20)]
         return top_genres
 
-    def get_top_artists(self, limit=5):
+    def get_top_artists(self, limit=20):
         # Get the user's top artists
         top_artists = self.sp.current_user_top_artists(limit=limit)['items']
 
         # Get the artist names
         top_artist_names = [artist['name'] for artist in top_artists]
-        return top_artist_names
+
+        # Shuffle the top_artist_names list
+        random.shuffle(top_artist_names)
+
+        # Return the first 20 artists
+        return top_artist_names[:10]
     
     def get_recently_played_tracks(self):
         # Get the user's recently played tracks
@@ -597,3 +612,43 @@ class Musaic:
 
 #     def __str__(self):
 #         return f"Playlist: {self.name}"
+
+
+
+# # Function to get genres from ChatGPT API
+# def get_playlist_from_gpt(user_input, access_token):
+#     pm = Musaic(access_token)
+#     sp = spotipy.Spotify(auth=access_token)
+#     top_artists = pm.get_top_artists()
+
+#     prompt = f"Based on these artists '{top_artists}', choose only the artists that best fit the phrase '{user_input}' and make me a list of artists."
+#     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=50, n=1, stop=None, temperature=0.7)
+#     print(response)
+#     artist_list_text = response.choices[0].text.strip()
+#     artist_text_lines = [line.strip().lstrip('-') for line in artist_list_text.split('\n') if line]
+#     artist_list = [line.strip().replace('"', '') for line in artist_text_lines if line]
+
+#     # Convert track names to track IDs
+#     track_ids = []
+#     unique_track_ids = set()
+#     while(len(track_ids) <= 20):
+#         for count in range(5):
+#             for artist_name in artist_list:
+#                 if artist_name:  # Check if the artist_name is not empty
+#                     search_results = sp.search(q=artist_name, type="track", limit=20)
+#                     random.shuffle(search_results)
+#                     if search_results["tracks"]["items"]:
+#                         try:
+#                             track_id = search_results["tracks"]["items"][count]["id"]
+#                             if track_id in unique_track_ids:
+#                                 print("already in tracks")
+#                                 continue
+#                             if len(track_ids) >= 20:
+#                                 return track_ids
+#                             unique_track_ids.add(track_id)
+#                             track_ids.append(track_id)
+#                         except IndexError:
+#                             print(f"No track found for '{artist_name}' at index {count}")
+#                             continue
+
+#     return track_ids

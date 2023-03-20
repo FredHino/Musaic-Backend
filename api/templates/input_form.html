@@ -21,6 +21,7 @@
             padding: 30px;
             border-radius: 5px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative; /* Added */
         }
 
         h1 {
@@ -52,6 +53,27 @@
         input[type="submit"]:hover {
             background-color: #0056b3;
         }
+
+        /* Loading spinner styles */
+        .loading-spinner {
+            display: none;
+            position: absolute;
+            z-index: 999;
+            left: 45%;
+            top: -70px; /* Adjust this value to change the vertical position of the spinner */
+            transform: translateX(-50%);
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
     <script>
         function validateForm() {
@@ -60,6 +82,12 @@
                 alert("Please enter a non-empty phrase.");
                 return false;
             }
+            showLoadingSpinner();
+            return true;
+        }
+
+        function showLoadingSpinner() {
+            document.getElementById("loading-spinner").style.display = "block";
         }
     </script>
 </head>
@@ -68,6 +96,7 @@
         <h1>Enter a phrase to create a playlist</h1>
         <input type="text" name="user_input" placeholder="Enter a phrase...">
         <input type="submit" value="Submit">
+        <div id="loading-spinner" class="loading-spinner"></div> <!-- Moved inside the form -->
     </form>
 </body>
 </html>

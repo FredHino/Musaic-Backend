@@ -31,6 +31,12 @@ app = Flask(__name__)
 app.secret_key = 'SOMETHING-RANDOM'
 app.config['SESSION_COOKIE_NAME'] = 'spotify-login-session'
 
+@app.route('/loading')
+def loading():
+    return render_template("loading.html")
+
+
+
 @app.route('/')
 def login():
     sp_oauth = create_spotify_oauth()
@@ -73,7 +79,6 @@ def get_all_tracks():
         }
         return render_template("playlist.html", link=link, tracks=tracks)
     return render_template("input_form.html")
-
 
 
 def create_spotify_oauth():
@@ -226,7 +231,7 @@ class Musaic:
         top_genres = [genre for genre, _ in genres_counter.most_common(20)]
         return top_genres
 
-    def get_top_artists(self, limit=20):
+    def get_top_artists(self, limit=10):
         # Get the user's top artists
         top_artists = self.sp.current_user_top_artists(limit=limit)['items']
 

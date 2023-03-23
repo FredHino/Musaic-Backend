@@ -322,5 +322,17 @@ class Musaic:
         link = playlist["external_urls"]["spotify"]
         return link, track_details
 
+    # experimental function for recommending songs
+    def get_recommended_songs(self, seed_tracks, requested_genres, limit):
+        """Get a list of recommended tracks
+        :param seed_tracks: Reference tracks to get recommendations. Should be 5 or less.
+        :param requested_genres : list of genres
+        :param limit (int): Number of recommended tracks to be returned
+        :return tracks (list of Track): List of recommended tracks
+        Grab three random genres (if more than three) and two seed tracks as base"""
+        recommended_tracks = self.sp.recommendations(seed_genres=requested_genres, seed_tracks=seed_tracks, limit=limit) ['tracks']
+        tracks = [track['id'] for track in recommended_tracks]
+        return tracks
+
 
 

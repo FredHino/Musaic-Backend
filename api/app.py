@@ -112,40 +112,70 @@ def get_token():
 
 
 
-# Function to get genres from ChatGPT API
+# Create a new database called "artists"
+artists_db = client.artists
+
+# Function to check if an artist exists in the database
+def is_artist_in_database(artist_name):
+    artist = artists_db[artist_name].find_one({})
+    return artist is not None
+
+def store_artist_tracks_in_database(artist_name, top_tracks, related_tracks):
+    artist_data = {
+        "top_tracks": [{"id": track["id"], "name": track["name"], "artist": artist_name} for track in top_tracks],
+        "related_tracks": [{"id": track["id"], "name": track["name"], "artist": track["artists"][0]["name"]} for track in related_tracks],
+    }
+    artists_db[artist_name].insert_one(artist_data)
+
+
+
 def get_playlist_from_gpt(user_input, access_token):
-    pm = Musaic(access_token)
     sp = spotipy.Spotify(auth=access_token)
+    pm = Musaic(access_token)
     top_artists = pm.get_top_artists()
 
-    prompt = f"Based on this phrase '{user_input}', give me a list of artists. Pick 3 artists from '{top_artists}' and choose 3 relevant artists not listed."
+    # Get the artist list from ChatGPT
+    prompt = f"Based on the vibe, feeling, and overall sense of this phrase '{user_input}', rank the top 5 artists from this list '{top_artists}' from most related to the phrase, to the least related."
     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=500, n=1, stop=None, temperature=0.7)
     artist_list_text = response.choices[0].text.strip()
     artist_text_lines = artist_list_text.split('\n')
     artist_list = [line.partition('. ')[-1].strip().rstrip('"') for line in artist_text_lines if line]
     artist_list = [line.partition('. ')[-1].strip().replace('"', '') for line in artist_text_lines if line]
-
     print(artist_list)
-
-    # Convert track names to track IDs
     track_ids = []
-    while(len(track_ids) <= 20):
-        count = 0
-        for count in range(10):
-            for artist_name in artist_list:
-                if artist_name:  # Check if the artist_name is not empty
-                    search_results = sp.search(q=artist_name, type="track", limit=10)
-                    random.shuffle(search_results)
-                    if search_results["tracks"]["items"]:
-                        track_id = search_results["tracks"]["items"][count]["id"]
-                        if track_id in track_ids:
-                            count+=1
-                            print("already in tracks")
-                            continue
-                        if(len(track_ids) >= 20):
-                            return track_ids
-                        track_ids.append(track_id)
-    print(track_ids)
+    for artist_name in artist_list:
+        # Search for the artist ID using the artist name
+        results = sp.search(q=f"artist:{artist_name}", type="artist")
+        if results['artists']['items']:
+            artist_id = results['artists']['items'][0]['id']
+        else:
+            continue
+
+        if not is_artist_in_database(artist_name):
+            # Get top tracks and related tracks
+            top_tracks = sp.artist_top_tracks(artist_id, country='US')['tracks']
+            related_artists = sp.artist_related_artists(artist_id)['artists']
+            related_artist_ids = [artist['id'] for artist in related_artists[:5]]
+            related_tracks = []
+            for related_artist_id in related_artist_ids:
+                related_artist_tracks = sp.artist_top_tracks(related_artist_id, country='US')['tracks']
+                related_tracks.extend(related_artist_tracks[:10])
+                print("stored songs")
+
+            # Store the artist's top tracks and related tracks in the database
+            store_artist_tracks_in_database(artist_name, top_tracks, related_tracks)
+            print("stored all")
+
+        # Get 10 random tracks from the artist's collection
+        artist_tracks = list(artists_db[artist_name].find_one({}, {'_id': 0, 'top_tracks': 1, 'related_tracks': 1}).values())
+        top_tracks, related_tracks = artist_tracks
+        selected_tracks = top_tracks[:10] + related_tracks[:3]
+        random.shuffle(selected_tracks)
+        track_ids.extend(selected_tracks[:10])
+
+    # Shuffle the track_ids list and return 20 random songs from it
+    random.shuffle(track_ids)
+    track_ids = [track['id'] for track in track_ids[:20]]
 
     return track_ids
 
@@ -231,7 +261,7 @@ class Musaic:
         top_genres = [genre for genre, _ in genres_counter.most_common(20)]
         return top_genres
 
-    def get_top_artists(self, limit=10):
+    def get_top_artists(self, limit=20):
         # Get the user's top artists
         top_artists = self.sp.current_user_top_artists(limit=limit)['items']
 
@@ -239,10 +269,10 @@ class Musaic:
         top_artist_names = [artist['name'] for artist in top_artists]
 
         # Shuffle the top_artist_names list
-        random.shuffle(top_artist_names)
+        # random.shuffle(top_artist_names)
 
         # Return the first 20 artists
-        return top_artist_names[:10]
+        return top_artist_names
     
     def get_recently_played_tracks(self):
         # Get the user's recently played tracks
@@ -294,366 +324,3 @@ class Musaic:
 
 
 
-# def main(oauth):
-
-#     # replace auth with own authentication code (expires every hour)
-#     auth = oauth
-#     # for multiple people use
-#     listofauths = [auth]
-#     # get genre types?
-#     genres = ["rap"]
-#     # "r-n-b", "pop", "jazz", "classical", "alternative", "indie", "j-rock", "latin"
-
-#     # main playlist
-#     pm = playlistmaker(listofauths)
-
-#     # get tracks, limit is 50 for top and recently played tracks
-#     # also if we go beyond 100 Spotify kind of breaks
-#     # since we're getting both top played and recently played, divide by 2
-#     num_tracks = int(20 / len(listofauths))
-#     # tracks = pm.multiple_get_tracks(num_tracks)
-#     tracks = pm.get_tracks_genre_filter(num_tracks, genres)
-#     title = "Musaic"
-#     description = "Recommended songs by Musaic heh c:"
-#     playlist = pm.create_playlist(title, description)
-#     pm.populate_playlist(playlist, tracks)
-
-#     # get recommended if not full
-#     if len(tracks) < 20:
-#         random.seed()
-#         rec_track_num = 20 - len(tracks)
-#         # check if songs actually found in library
-#         seed_tracks = list()
-#         if (len(tracks) != 0):
-#             # check if there's one song
-#             trackmax = 2
-#             if (len(tracks) == 1):
-#                 trackmax = 1
-#             tracks = list(tracks)
-#             random.shuffle(tracks)
-#             for counter in range(trackmax):
-#                 chosen_track = tracks[counter]
-#                 print(chosen_track.name)
-#                 seed_tracks.append(chosen_track.id)
-#         # if requested genres is over 3, find three random genres out of it
-#         random_requested_genres = genres
-#         if (len(genres) > (5-len(seed_tracks))):
-#             random_requested_genres = list()
-#             random.shuffle(genres)
-#             for i in range(5-len(seed_tracks)):
-#                 random_requested_genres.append(genres[i])
-#         # test
-#         for yay in random_requested_genres:
-#             print(yay)
-#         rec_tracks = pm.get_track_recommendations(seed_tracks, random_requested_genres, rec_track_num)
-
-#         pm.populate_playlist(playlist, rec_tracks)
-
-
-
-#     # get link to playlist
-#     link = pm.get_playlist_link()
-#     # local test
-#     return(link)
-
-# class playlistmaker:
-
-#     def __init__(self, listofauths):
-#         """
-#         :param listofauths (lst): list of Spotify API tokens
-#         """
-#         self.authorizationToken = listofauths[0]
-#         self.tokenslist = listofauths
-#         self.playlistid = ""
-
-#     # duplicate function for site testing purposes
-#     def get_tracks(self, limit):
-#         """Get the top and recent n tracks played by a user
-#         :param limit (int): Number of tracks to get. Should be <= 50
-#         :return tracks (list of Track): List of last played tracks
-#         """
-#         tracks = list()
-#         for user in self.tokenslist:
-#             # get top tracks first
-#             url = f"https://api.spotify.com/v1/me/top/tracks?limit={limit}"
-#             response = self._place_get_api_request(url, user)
-#             response_json = response.json()
-#             for track in response_json["items"]:
-#                 tracks.append(Track(track["name"], track["id"], track["artists"][0]["name"]))
-
-#             # reset the url to get recently played tracks
-#             url = f"https://api.spotify.com/v1/me/player/recently-played?limit={limit}"
-#             response = self._place_get_api_request(url, user)
-#             response_json = response.json()
-#             for track in response_json["items"]:
-#                 tracks.append(Track(track["track"]["name"], track["track"]["id"], track["track"]["artists"][0]["name"]))
-#         # remove duplicates
-#         tracks = set(tracks)
-#         return tracks
-
-
-#     def get_tracks_genre_filter(self, limit, requested_genres):
-#         """Get the top and recent n tracks played by a user
-#         :param limit (int): Number of tracks to get. Should be <= 50
-#         :param requested_genres (list): list of requested genres user wants
-#         :return tracks (list of Track): List of last played tracks
-#         """
-#         """Get the top and recent n tracks played by a user
-#                 :param limit (int): Number of tracks to get. Should be <= 50
-#                 :param requested_genres (list): list of requested genres user wants
-#                 :return tracks (list of Track): List of last played tracks
-#                 """
-#         tracks = list()
-#         for user in self.tokenslist:
-#             # get top tracks first
-#             url = f"https://api.spotify.com/v1/me/top/tracks?limit={limit}"
-#             response = self._place_get_api_request(url, user)
-#             response_json = response.json()
-#             # json testing for debugging purposes
-#             # json_object = json.dumps(response_json)
-#             # with open("test.json", "w") as outfile:
-#             #     outfile.write(json_object)
-#             # f = open('test.json')
-
-#             # returns JSON object as
-#             # a dictionary
-#             # data = json.load(f)
-#             #
-#             # # Iterating through the json
-#             # # list
-#             # for i in data['items']:
-#             #     print(i)
-#             # # Closing file
-#             # f.close()
-#             # separate by genre
-#             for track in response_json["items"]:
-#                 artist_id = track["artists"][0]["id"]
-#                 if self.match_artist_genre(artist_id, requested_genres, user):
-#                     tracks.append(Track(track["name"], track["id"], track["artists"][0]["name"]))
-
-#             # reset the url to get recently played tracks
-#             url = f"https://api.spotify.com/v1/me/player/recently-played?limit={limit}"
-#             response = self._place_get_api_request(url, user)
-#             response_json = response.json()
-#             for track in response_json["items"]:
-#                 artist_id = track["track"]["artists"][0]["id"]
-#                 if self.match_artist_genre(artist_id, requested_genres, user):
-#                     tracks.append(
-#                         Track(track["track"]["name"], track["track"]["id"], track["track"]["artists"][0]["name"]))
-
-#         # # reset url again to get specific genre tracks of 2022 (Carrie's design)
-#         # for genre in requested_genres:
-#         #     url = f"https://api.spotify.com/v1/search?type=track&q=year:2022%20genre:{genre}&limit=5"
-#         #     response = self._place_get_api_request(url)
-#         #     response_json = response.json()
-#         #     for track in response_json['tracks']['items']:
-#         #         tracks.append(Track(track["name"], track["id"], track["artists"][0]["name"]))
-
-#         # remove duplicates
-#         tracks = set(tracks)
-#         return tracks
-
-#     def get_user_id(self):
-#         """Get the user ID of user to access their Spotify and create a playlist
-#         :return userid: unique string for finding user's Spotify"""
-#         url = f"https://api.spotify.com/v1/me"
-#         response = self._place_get_api_request(url, self.authorizationToken)
-#         response_json = response.json()
-#         userid = response_json["id"]
-#         return userid
-
-
-#     # genre filter function
-#     # since apparently getting the track genre is broken
-#     def match_artist_genre(self, artist, requested_genres, userauth):
-#         """Gets artists' genres and sees if it matches with the requested genres
-#         :param artist: artist id
-#         :param requested_genres: list of requested genres
-#         :return: True if artists' genres is in the requested, False if otherwise
-#         """
-#         # testing purposes
-#         # track_id = "1fdlTXD7obDyqOpx96BEL9" — Maison
-#         # 5NK2NHvmKLOn8V3eBYDaKm July 7th
-#         url = f"https://api.spotify.com/v1/artists/{artist}"
-#         response = self._place_get_api_request(url, userauth)
-#         response_json = response.json()
-#         artist_genres = response_json["genres"]
-#         for artist_genre in artist_genres:
-#             if artist_genre in requested_genres:
-#                 return True
-#         return False
-
-#     # WIP
-#     def get_track_recommendations(self, seed_tracks, requested_genres, limit):
-#         """Get a list of recommended tracks starting from a number of seed tracks.
-#         :param seed_tracks (list of Track): Reference tracks to get recommendations. Should be 5 or less.
-#         :param limit (int): Number of recommended tracks to be returned
-#         :return tracks (list of Track): List of recommended tracks
-#         Grab three random genres (if more than three) and two seed tracks as base """
-#         # get seed tracks first
-#         seed_tracks_url = ""
-#         for seed_track in seed_tracks:
-#             seed_tracks_url += seed_track + ","
-#         seed_tracks_url = seed_tracks_url[:-1]
-
-#         seed_genres_url = ""
-#         for seed_genre in requested_genres:
-#             seed_genres_url += seed_genre + ","
-#         seed_genres_url = seed_genres_url[:-1]
-
-#         url = f"https://api.spotify.com/v1/recommendations?limit={limit}&market=US&seed_genres={seed_genres_url}&seed_tracks={seed_tracks_url}"
-#         response = self._place_get_api_request(url, self.authorizationToken)
-#         response_json = response.json()
-#         tracks = [Track(track["name"], track["id"], track["artists"][0]["name"]) for track in response_json["tracks"]]
-#         return tracks
-
-
-#     # functions for creating a playlist
-#     def create_playlist(self, name, description):
-#         """
-#         :param name (str): New playlist name
-#         :return playlist (Playlist): Newly created playlist
-#         """
-#         userid = self.get_user_id()
-#         data = json.dumps({
-#             "name": name,
-#             "description": description,
-#             "collaborative": True,
-#             "public": False
-#         })
-#         url = f"https://api.spotify.com/v1/users/{userid}/playlists"
-#         response = self._place_post_api_request(url, data, self.authorizationToken)
-#         response_json = response.json()
-#         # get playlist ID for getting links
-#         playlist_id = response_json["id"]
-#         self.playlistid = playlist_id
-
-#         playlist = Playlist(name, playlist_id)
-#         return playlist
-
-#     def populate_playlist(self, playlist, tracks):
-#         """Add tracks to a playlist.
-#         :param playlist (Playlist): Playlist to which to add tracks
-#         :param tracks (list of Track): Tracks to be added to playlist
-#         :return response: API response
-#         """
-#         track_uris = [track.create_spotify_uri() for track in tracks]
-#         data = json.dumps(track_uris)
-#         url = f"https://api.spotify.com/v1/playlists/{playlist.id}/tracks"
-#         response = self._place_post_api_request(url, data, self.authorizationToken)
-#         response_json = response.json()
-#         return response_json
-
-#     def get_playlist_link(self):
-#         """Gets playlist link.
-#         :return: link of playlist (string)
-#         """
-#         url = f"https://api.spotify.com/v1/playlists/{self.playlistid}"
-#         response = self._place_get_api_request(url, self.authorizationToken)
-#         response_json = response.json()
-#         link = response_json['external_urls']['spotify']
-#         return link
-
-
-# # API requests for Spotify
-#     def _place_get_api_request(self, url, auth):
-#         response = requests.get(
-#             url,
-#             headers={
-#                 "Content-Type": "application/json",
-#                 "Authorization": f"Bearer {auth}"
-#             }
-#         )
-#         return response
-
-#     def _place_post_api_request(self, url, data, auth):
-#         response = requests.post(
-#             url,
-#             data=data,
-#             headers={
-#                 "Content-Type": "application/json",
-#                 "Authorization": f"Bearer {auth}"
-#             }
-#         )
-#         return response
-    
-# class Track:
-
-#     def __init__(self, name, id, artist):
-#         """
-#         :param name (str): Track name
-#         :param id (int): Spotify track id
-#         :param artist (str): Artist who created the track
-#         """
-#         # add genre at some point?
-#         self.name = name
-#         self.id = id
-#         self.artist = artist
-
-#     def create_spotify_uri(self):
-#         return f"spotify:track:{self.id}"
-    
-#     def __str__(self):
-#         return self.name + " by " + self.artist
-
-#     def __repr__(self):
-#         return '<track {}>'.format(self.id)
-
-#     def __eq__(self, other):
-#         return self.id == other.id
-
-#     def __hash__(self):
-#         return hash(self.id)
-    
-# class Playlist:
-    
-#     def __init__(self, name, id):
-#         """
-#         :param name (str): Playlist name
-#         :param id (int): Spotify playlist id
-#         """
-#         self.name = name
-#         self.id = id
-
-#     def __str__(self):
-#         return f"Playlist: {self.name}"
-
-
-
-# # Function to get genres from ChatGPT API
-# def get_playlist_from_gpt(user_input, access_token):
-#     pm = Musaic(access_token)
-#     sp = spotipy.Spotify(auth=access_token)
-#     top_artists = pm.get_top_artists()
-
-#     prompt = f"Based on these artists '{top_artists}', choose only the artists that best fit the phrase '{user_input}' and make me a list of artists."
-#     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=50, n=1, stop=None, temperature=0.7)
-#     print(response)
-#     artist_list_text = response.choices[0].text.strip()
-#     artist_text_lines = [line.strip().lstrip('-') for line in artist_list_text.split('\n') if line]
-#     artist_list = [line.strip().replace('"', '') for line in artist_text_lines if line]
-
-#     # Convert track names to track IDs
-#     track_ids = []
-#     unique_track_ids = set()
-#     while(len(track_ids) <= 20):
-#         for count in range(5):
-#             for artist_name in artist_list:
-#                 if artist_name:  # Check if the artist_name is not empty
-#                     search_results = sp.search(q=artist_name, type="track", limit=20)
-#                     random.shuffle(search_results)
-#                     if search_results["tracks"]["items"]:
-#                         try:
-#                             track_id = search_results["tracks"]["items"][count]["id"]
-#                             if track_id in unique_track_ids:
-#                                 print("already in tracks")
-#                                 continue
-#                             if len(track_ids) >= 20:
-#                                 return track_ids
-#                             unique_track_ids.add(track_id)
-#                             track_ids.append(track_id)
-#                         except IndexError:
-#                             print(f"No track found for '{artist_name}' at index {count}")
-#                             continue
-
-#     return track_ids

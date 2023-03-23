@@ -328,11 +328,27 @@ class Musaic:
         :param seed_tracks: Reference tracks to get recommendations. Should be 5 or less.
         :param requested_genres : list of genres
         :param limit (int): Number of recommended tracks to be returned
-        :return tracks (list of Track): List of recommended tracks
+        :return tracks: List of recommended tracks
         Grab three random genres (if more than three) and two seed tracks as base"""
         recommended_tracks = self.sp.recommendations(seed_genres=requested_genres, seed_tracks=seed_tracks, limit=limit) ['tracks']
         tracks = [track['id'] for track in recommended_tracks]
         return tracks
+
+    def get_artists_more_tracks(self, artist):
+        """Get a list of additional artists' tracks with addition to the top tracks
+        :param artist: artist URI/URL/whatever the fk I dunno man
+        :return tracks: list of tracks associated with artist
+        """
+        # since each album has (on average) around 9-12 songs, but account for singles, duplicates, etc, grab 6 albums
+        response = self.sp.artist_albums(artist_id=artist, limit=6)['items']
+        albums = [album['id']for album in response]
+        tracks = []
+        for a in albums:
+            album_tracks = self.sp.album_tracks(album_id=a)['items']
+            for track in album_tracks:
+                tracks.append(track['id'])
+        return tracks
+    
 
 
 

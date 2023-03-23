@@ -135,43 +135,46 @@ def get_playlist_from_gpt(user_input, access_token):
     top_artists = pm.get_top_artists()
 
     # Get the artist list from ChatGPT
-    prompt = f"Based on the vibe, feeling, and overall sense of this phrase '{user_input}', rank the top 5 artists from this list '{top_artists}' from most related to the phrase, to the least related."
+    prompt = f"Your output will be a list of 5 artists names (nothing more, nothing less). Based on the meaning and vibe of this phrase '{user_input}', output a list of 5 artists you think are related to the phrase."
     response = openai.Completion.create(engine="text-davinci-003", prompt=prompt, max_tokens=500, n=1, stop=None, temperature=0.7)
+    print(response)
     artist_list_text = response.choices[0].text.strip()
     artist_text_lines = artist_list_text.split('\n')
     artist_list = [line.partition('. ')[-1].strip().rstrip('"') for line in artist_text_lines if line]
     artist_list = [line.partition('. ')[-1].strip().replace('"', '') for line in artist_text_lines if line]
+    
     print(artist_list)
     track_ids = []
     for artist_name in artist_list:
-        # Search for the artist ID using the artist name
-        results = sp.search(q=f"artist:{artist_name}", type="artist")
-        if results['artists']['items']:
-            artist_id = results['artists']['items'][0]['id']
-        else:
-            continue
+        if artist_name:
+            # Search for the artist ID using the artist name
+            results = sp.search(q=f"artist:{artist_name}", type="artist")
+            if results['artists']['items']:
+                artist_id = results['artists']['items'][0]['id']
+            else:
+                continue
 
-        if not is_artist_in_database(artist_name):
-            # Get top tracks and related tracks
-            top_tracks = sp.artist_top_tracks(artist_id, country='US')['tracks']
-            related_artists = sp.artist_related_artists(artist_id)['artists']
-            related_artist_ids = [artist['id'] for artist in related_artists[:5]]
-            related_tracks = []
-            for related_artist_id in related_artist_ids:
-                related_artist_tracks = sp.artist_top_tracks(related_artist_id, country='US')['tracks']
-                related_tracks.extend(related_artist_tracks[:10])
-                print("stored songs")
+            if not is_artist_in_database(artist_name):
+                # Get top tracks and related tracks
+                top_tracks = pm.get_artist_top_50_tracks(artist_name)
+                related_artists = sp.artist_related_artists(artist_id)['artists']
+                related_artist_ids = [artist['id'] for artist in related_artists[:5]]
+                related_tracks = []
+                for related_artist_id in related_artist_ids:
+                    related_artist_tracks = sp.artist_top_tracks(related_artist_id, country='US')['tracks']
+                    related_tracks.extend(related_artist_tracks[:5])
+                    print("stored songs")
 
-            # Store the artist's top tracks and related tracks in the database
-            store_artist_tracks_in_database(artist_name, top_tracks, related_tracks)
-            print("stored all")
+                # Store the artist's top tracks and related tracks in the database
+                store_artist_tracks_in_database(artist_name, top_tracks, related_tracks)
+                print("stored all")
 
-        # Get 10 random tracks from the artist's collection
-        artist_tracks = list(artists_db[artist_name].find_one({}, {'_id': 0, 'top_tracks': 1, 'related_tracks': 1}).values())
-        top_tracks, related_tracks = artist_tracks
-        selected_tracks = top_tracks[:10] + related_tracks[:3]
-        random.shuffle(selected_tracks)
-        track_ids.extend(selected_tracks[:10])
+            # Get 10 random tracks from the artist's collection
+            artist_tracks = list(artists_db[artist_name].find_one({}, {'_id': 0, 'top_tracks': 1, 'related_tracks': 1}).values())
+            top_tracks, related_tracks = artist_tracks
+            selected_tracks = top_tracks[:10] + related_tracks[:1]
+            random.shuffle(selected_tracks)
+            track_ids.extend(selected_tracks[:10])
 
     # Shuffle the track_ids list and return 20 random songs from it
     random.shuffle(track_ids)
@@ -188,7 +191,7 @@ def main(access_token,suggested_playlist,user_input):
 
     # Create a playlist
     playlist_name = user_input
-    playlist = sp.user_playlist_create(user_id, playlist_name, public=True, description="By Musaic")
+    playlist = sp.user_playlist_create((user_id), playlist_name, public=True, description="By Musaic")
     playlist_id = playlist["id"]
 
     # Add the suggested tracks to the playlist
@@ -201,37 +204,34 @@ def main(access_token,suggested_playlist,user_input):
     link = playlist["external_urls"]["spotify"]
     return link, track_details
 
-# Function to check if user's Spotify ID is in the database
-def is_user_in_database(spotify_id):
-    user = user_info_db.users_top_songs.find_one({"spotify_id": spotify_id})
-    return user is not None
 
-# Function to store user's Spotify ID and top songs in the database
-def store_top_songs_in_database(spotify_id, top_tracks):
-    if not is_user_in_database(spotify_id):
-        user_data = {
-            "spotify_id": spotify_id,
-            "top_songs": top_tracks
-        }
-        user_info_db.users_top_songs.insert_one(user_data)
 
-# Modified get_top_tracks function
-def get_top_tracks_and_store_in_db(access_token):
+def get_artist_top_50_tracks(sp, artist_name,access_token):
+    # Search for the artist ID using the artist name
     sp = spotipy.Spotify(auth=access_token)
+    results = sp.search(q=f"artist:{artist_name}", type="artist")
+    if results['artists']['items']:
+        artist_id = results['artists']['items'][0]['id']
+    else:
+        return []
 
-    # Get the user's top tracks
-    top_tracks = sp.current_user_top_tracks(limit=50)['items']
+    # Get the artist's top 10 tracks
+    top_tracks = sp.artist_top_tracks(artist_id, country='US')['tracks']
+    # Get the artist's albums
+    albums = sp.artist_albums(artist_id, limit=6)
 
-    # Get the track IDs
-    top_track_ids = [track['id'] for track in top_tracks]
+    # Get the tracks from the artist's albums
+    for album in albums['items']:
+        album_tracks = sp.album_tracks(album['id'])['items']
+        top_tracks.extend(album_tracks)
 
-    # Get the user's Spotify ID
-    spotify_id = sp.me()["id"]
+    # Remove duplicate tracks
+    unique_tracks = {track['id']: track for track in top_tracks}.values()
 
-    # Store the user's Spotify ID and top songs in the database
-    store_top_songs_in_database(spotify_id, top_track_ids)
+    # Limit to the top 50 tracks
+    top_50_tracks = list(unique_tracks)[:50]
 
-    return top_track_ids
+    return top_50_tracks
 
 
 class Musaic:
@@ -261,18 +261,65 @@ class Musaic:
         top_genres = [genre for genre, _ in genres_counter.most_common(20)]
         return top_genres
 
-    def get_top_artists(self, limit=20):
-        # Get the user's top artists
-        top_artists = self.sp.current_user_top_artists(limit=limit)['items']
+    def get_top_artists(self):
 
-        # Get the artist names
-        top_artist_names = [artist['name'] for artist in top_artists]
+        # Get the user's ID
+        user_id = self.sp.me()['id']
 
-        # Shuffle the top_artist_names list
-        # random.shuffle(top_artist_names)
+        user_artists = user_info_db.users_top_artists
 
-        # Return the first 20 artists
-        return top_artist_names
+        # Check if the user is in the user_info.users_top_artists
+        user_artists = user_info_db.users_top_artists.find_one({"user_id": user_id})
+
+        if user_artists:
+            # If the user is in the collection, select 25 random artists from their document
+            artist_names = user_artists['artists']
+            random.shuffle(artist_names)
+            top_artist_names = artist_names[:50]
+        else:
+            # If the user is not in the collection, add the user with their top 50 artists
+            top_artists = self.sp.current_user_top_artists(limit=50, time_range="medium_term")['items']
+            top_artist_names = [artist['name'] for artist in top_artists]
+
+            # Add the user and their top artists to user_info.users_top_artists
+            user_info_db.users_top_artists.insert_one({"user_id": user_id, "artists": top_artist_names})
+            print("new user")
+
+            # Shuffle the top_artist_names list and select the first 25 artists
+            random.shuffle(top_artist_names)
+            top_artist_names = top_artist_names[:50]
+        random.shuffle(top_artist_names)
+
+        return top_artist_names[:25]
+    
+    def get_artist_top_50_tracks(self, artist_name):
+        # Search for the artist ID using the artist name
+
+        results = self.sp.search(q=f"artist:{artist_name}", type="artist")
+        if results['artists']['items']:
+            artist_id = results['artists']['items'][0]['id']
+        else:
+            return []
+
+        # Get the artist's top 10 tracks
+        top_tracks = self.sp.artist_top_tracks(artist_id, country='US')['tracks']
+
+        # Get the artist's albums
+        albums = self.sp.artist_albums(artist_id, limit=50)
+
+        # Get the tracks from the artist's albums
+        for album in albums['items']:
+            album_tracks = self.sp.album_tracks(album['id'])['items']
+            top_tracks.extend(album_tracks)
+
+        # Remove duplicate tracks
+        unique_tracks = {track['id']: track for track in top_tracks}.values()
+
+        # Limit to the top 50 tracks
+        top_50_tracks = list(unique_tracks)[:50]
+
+        return top_50_tracks
+
     
     def get_recently_played_tracks(self):
         # Get the user's recently played tracks

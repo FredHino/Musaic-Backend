@@ -278,21 +278,6 @@ class Musaic:
         tracks = [track['id'] for track in recommended_tracks]
         return tracks
 
-    def get_artists_more_tracks(self, artist):
-        """Get a list of additional artists' tracks with addition to the top tracks
-        :param artist: artist URI/URL/whatever the fk I dunno man
-        :return tracks: list of tracks associated with artist
-        """
-        # since each album has (on average) around 9-12 songs, but account for singles, duplicates, etc, grab 6 albums
-        response = self.sp.artist_albums(artist_id=artist, limit=6)['items']
-        albums = [album['id']for album in response]
-        tracks = []
-        for a in albums:
-            album_tracks = self.sp.album_tracks(album_id=a)['items']
-            for track in album_tracks:
-                tracks.append(track['id'])
-        return tracks
-    
     def get_playlist_from_gpt(self,user_input):
         sp = self.sp
         top_artists = self.get_top_artists()

@@ -123,6 +123,7 @@ class Musaic:
         self.artists_db = self.client.artists
 
     def get_collection_name(self, artist_name):
+        artist_name = ''.join(filter(lambda x: x.isalpha() or x.isdigit() or x.isspace(), artist_name))
         first_letter = artist_name[0].upper()
         return f"{first_letter}"
 

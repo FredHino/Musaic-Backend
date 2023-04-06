@@ -190,7 +190,7 @@ class Musaic:
             top_artist_names = [artist['name'] for artist in top_artists]
 
             # Add the user and their top artists to user_info.users_top_artists
-            self.user_info_db.users_top_artists.insert_one({"user_id": user_id, "user_name" : name, "artists": top_artist_names})
+            self.user_info_db.users_top_artists.insert_one({"user_id": user_id, "user_name" : name, "avatar" : image, "artists": top_artist_names})
             print("new user")
 
             # Shuffle the top_artist_names list and select the first 25 artists

@@ -298,7 +298,7 @@ class Musaic:
         print("get_playlist_from_gpt called")
 
 
-        # Get the artist list from ChatGPT
+        # Get the artist from ChatGPT
 
 
         prompt = f"Your output will be a list of artists names. Based on the meaning and vibe of this phrase '{user_input}', rank the top 3 artists from this list '{top_artists}', that match the phrase the most. If an artist's name is included in the phrase, include the artist too."

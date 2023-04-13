@@ -182,22 +182,22 @@ class Musaic:
             random.shuffle(artist_names)
             top_artist_names = artist_names[:25]
             name = user_data['display_name']
-            image = user_data['images']['url']
+            # image = user_data['images']['url']
             # temporary solution for existing users?
             self.user_info_db.users_top_artists.replaceOne(
                 {"user_id": user_id},
-                {"user_id": user_id, "user_name" : name, "avatar" : image, "artists": top_artist_names}
+                {"user_id": user_id, "user_name" : name, "artists": top_artist_names}
             )
         else:
             # If the user is not in the collection, add the user with their top 50 artists
             # add name and image url as well
             name = user_data['display_name']
-            image = user_data['images']['url']
+            # image = user_data['images']['url']
             top_artists = self.sp.current_user_top_artists(limit=50, time_range="medium_term")['items']
             top_artist_names = [artist['name'] for artist in top_artists]
 
             # Add the user and their top artists to user_info.users_top_artists
-            self.user_info_db.users_top_artists.insert_one({"user_id": user_id, "user_name" : name, "avatar" : image, "artists": top_artist_names})
+            self.user_info_db.users_top_artists.insert_one({"user_id": user_id, "user_name" : name, "artists": top_artist_names}) #"avatar" : image,
             print("new user")
 
             # Shuffle the top_artist_names list and select the first 25 artists
